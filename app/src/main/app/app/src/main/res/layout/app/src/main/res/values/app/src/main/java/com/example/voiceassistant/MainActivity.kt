@@ -9,11 +9,14 @@ import android.speech.RecognizerIntent
 import android.speech.RecognitionListener
 import android.speech.SpeechRecognizer
 import android.widget.Button
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.io.PrintWriter
+import java.io.StringWriter
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +30,30 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val prefs = getSharedPreferences("crash_log", MODE_PRIVATE)
+        val lastCrash = prefs.getString("last_crash", null)
+        if (lastCrash != null) {
+            val scrollView = ScrollView(this)
+            val tv = TextView(this)
+            tv.text = "শেষবার অ্যাপ বন্ধ হওয়ার কারণ:\n\n$lastCrash"
+            tv.setPadding(24, 24, 24, 24)
+            tv.textSize = 12f
+            tv.setTextIsSelectable(true)
+            scrollView.addView(tv)
+            setContentView(scrollView)
+            prefs.edit().remove("last_crash").apply()
+            return
+        }
+
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            val sw = StringWriter()
+            throwable.printStackTrace(PrintWriter(sw))
+            getSharedPreferences("crash_log", MODE_PRIVATE).edit()
+                .putString("last_crash", sw.toString()).apply()
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
+
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.statusText)
